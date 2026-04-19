@@ -138,16 +138,9 @@
             statusEl.textContent = msg;
         }
 
-        function setProgress(loaded, total) {
-            if (total > 0) {
-                barCont.classList.remove('indeterminate');
-                const pct = Math.round(loaded / total * 100);
-                barFill.style.width = pct + '%';
-                pctEl.textContent = pct + '%';
-            } else {
-                barCont.classList.add('indeterminate');
-                pctEl.textContent = '';
-            }
+        function setProgress(loaded) {
+            barCont.classList.add('indeterminate');
+            pctEl.textContent = (loaded / 1_000_000).toFixed(1) + ' MB';
         }
 
         function showError(msg) {
@@ -170,9 +163,8 @@
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
 
-                const total = parseInt(response.headers.get('content-length') || '0');
                 let loaded = 0;
-                setProgress(loaded, total);
+                setProgress(loaded);
 
                 const reader = response.body.getReader();
                 const chunks = [];
@@ -182,7 +174,7 @@
                     if (done) break;
                     chunks.push(value);
                     loaded += value.length;
-                    setProgress(loaded, total);
+                    setProgress(loaded);
                 }
 
                 // Assemble buffer
