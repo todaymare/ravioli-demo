@@ -6,14 +6,102 @@
     <title>Ravioli</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
-        canvas { display: block; width: 100%; height: 100%; }
+
+        html, body {
+            width: 100%; height: 100%;
+            overflow: hidden;
+            background: #0a0a0a;
+            font-family: 'Courier New', monospace;
+        }
+
+        canvas {
+            display: block;
+            width: 100%; height: 100%;
+        }
+
         #loading {
             position: fixed; inset: 0;
             display: flex; align-items: center; justify-content: center;
-            flex-direction: column; gap: 16px;
-            background: #1a1a1a; color: #fff; font-family: sans-serif;
-            z-index: 10; transition: opacity 0.5s;
+            flex-direction: column; gap: 24px;
+            background: #0a0a0a;
+            color: #e8e8e8;
+            z-index: 10;
+            transition: opacity 0.4s ease;
+        }
+
+        #loading.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .title {
+            font-size: 11px;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            color: #555;
+            margin-bottom: 8px;
+        }
+
+        .status {
+            font-size: 13px;
+            letter-spacing: 0.15em;
+            color: #e8e8e8;
+            min-height: 20px;
+            text-align: center;
+        }
+
+        .bar-container {
+            width: 280px;
+            height: 2px;
+            background: #1e1e1e;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            background: #e8e8e8;
+            width: 0%;
+            transition: width 0.15s ease;
+        }
+
+        .bar-container.indeterminate .bar-fill {
+            width: 40%;
+            animation: slide 1.2s ease-in-out infinite;
+        }
+
+        @keyframes slide {
+            0%   { transform: translateX(-100%); }
+            100% { transform: translateX(350%); }
+        }
+
+        .pct {
+            font-size: 11px;
+            letter-spacing: 0.2em;
+            color: #444;
+            min-height: 16px;
+        }
+
+        .click-hint {
+            font-size: 11px;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: #444;
+            animation: blink 1.6s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.2; }
+        }
+
+        .error {
+            color: #c0392b;
+            font-size: 12px;
+            letter-spacing: 0.1em;
+            max-width: 320px;
+            text-align: center;
+            line-height: 1.6;
         }
     </style>
 </head>
@@ -21,42 +109,111 @@
     <canvas id="game-canvas"></canvas>
 
     <div id="loading">
-        <span>Click to start</span>
+        <div class="title">Ravioli</div>
+        <div class="status" id="status">Click anywhere to start</div>
+        <div class="bar-container" id="bar-container">
+            <div class="bar-fill" id="bar-fill"></div>
+        </div>
+        <div class="pct" id="pct"></div>
+        <div class="click-hint" id="click-hint">[ click to begin ]</div>
     </div>
 
     <script type="module">
-        const canvas = document.getElementById('game-canvas');
+        const canvas    = document.getElementById('game-canvas');
+        const loading   = document.getElementById('loading');
+        const statusEl  = document.getElementById('status');
+        const barFill   = document.getElementById('bar-fill');
+        const barCont   = document.getElementById('bar-container');
+        const pctEl     = document.getElementById('pct');
+        const hintEl    = document.getElementById('click-hint');
+
         function resizeCanvas() {
-            canvas.width = window.innerWidth * devicePixelRatio;
-            canvas.height = window.innerHeight * devicePixelRatio;
+            canvas.width  = Math.floor(window.innerWidth  * devicePixelRatio);
+            canvas.height = Math.floor(window.innerHeight * devicePixelRatio);
         }
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
 
-        import init from './ravioli.js';
+        function setStatus(msg) {
+            statusEl.textContent = msg;
+        }
 
-        const loading = document.getElementById('loading');
+        function setProgress(loaded, total) {
+            if (total > 0) {
+                barCont.classList.remove('indeterminate');
+                const pct = Math.round(loaded / total * 100);
+                barFill.style.width = pct + '%';
+                pctEl.textContent = pct + '%';
+            } else {
+                barCont.classList.add('indeterminate');
+                pctEl.textContent = '';
+            }
+        }
+
+        function showError(msg) {
+            loading.innerHTML = `<div class="title">Ravioli</div><div class="error">${msg}</div>`;
+        }
+
         let initialized = false;
 
         async function start() {
             if (initialized) return;
             initialized = true;
-            loading.innerHTML = '<div class="spinner"></div><span>Loading Ravioli...</span>';
+            hintEl.style.display = 'none';
 
             try {
-                await init();
+                // Fetch wasm with progress tracking
+                setStatus('Fetching...');
+                const response = await fetch('./ravioli_bg.wasm');
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const total = parseInt(response.headers.get('content-length') || '0');
+                let loaded = 0;
+                setProgress(loaded, total);
+
+                const reader = response.body.getReader();
+                const chunks = [];
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    chunks.push(value);
+                    loaded += value.length;
+                    setProgress(loaded, total);
+                }
+
+                // Assemble buffer
+                setStatus('Initializing...');
+                barCont.classList.add('indeterminate');
+                pctEl.textContent = '';
+
+                const wasmBytes = new Uint8Array(loaded);
+                let offset = 0;
+                for (const chunk of chunks) {
+                    wasmBytes.set(chunk, offset);
+                    offset += chunk.length;
+                }
+
+                // Init wasm
+                const { default: init } = await import('./ravioli.js');
+                await init(wasmBytes.buffer);
+
                 loading.classList.add('hidden');
+
             } catch (err) {
-                if (err.message && err.message.includes('Using exceptions for control flow')) {
+                if (err?.message?.includes('Using exceptions for control flow')) {
                     loading.classList.add('hidden');
                     return;
                 }
-                loading.innerHTML = `<span style="color:#e74c3c">Failed to load: ${err}</span>`;
                 console.error(err);
+                showError(`Failed to load<br><br>${err.message ?? err}`);
             }
         }
 
-        loading.addEventListener('click', start, { once: true });
+        loading.addEventListener('click',      start, { once: true });
         loading.addEventListener('touchstart', start, { once: true });
     </script>
 </body>
