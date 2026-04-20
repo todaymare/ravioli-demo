@@ -120,6 +120,17 @@
     </div>
 
     <script type="module">
+        // Fix: WebGPU's GPUCanvasContext instanceof check fails on some
+        // Chromium/Linux builds due to cross-realm prototype mismatches.
+        // Replace the global with the actual browser constructor before wasm loads.
+        if (typeof navigator.gpu !== 'undefined') {
+            const tmp = document.createElement('canvas');
+            const ctx = tmp.getContext('webgpu');
+            if (ctx) {
+                window.GPUCanvasContext = ctx.constructor;
+            }
+        }
+
         const canvas    = document.getElementById('game-canvas');
         const loading   = document.getElementById('loading');
         const statusEl  = document.getElementById('status');
