@@ -104,10 +104,35 @@
             text-align: center;
             line-height: 1.6;
         }
+
+        #discord-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 5;
+            background: #5865F2;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            text-decoration: none;
+            padding: 8px 14px;
+            border: none;
+            opacity: 0.7;
+            transition: opacity 0.2s ease;
+        }
+
+        #discord-btn:hover {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
     <canvas id="game-canvas"></canvas>
+    <a id="discord-btn" href="https://daymare.net/community" target="_blank">
+        Discord
+    </a>
 
     <div id="loading">
         <div class="title">Ravioli</div>
@@ -117,6 +142,7 @@
         </div>
         <div class="pct" id="pct"></div>
         <div class="click-hint" id="click-hint">[ click to begin ]</div>
+
     </div>
 
     <script type="module">
@@ -169,7 +195,7 @@
             try {
                 // Fetch wasm with progress tracking
                 setStatus('Fetching...');
-                const response = await fetch('./ravioli_bg.wasm?v=517');
+                const response = await fetch('./ravioli_bg.wasm?v=552');
 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -202,7 +228,7 @@
                 }
 
                 // Init wasm
-                const { default: init } = await import('./ravioli.js?v=517');
+                const { default: init } = await import('./ravioli.js?v=552');
                 await init(wasmBytes.buffer);
 
                 loading.classList.add('hidden');
