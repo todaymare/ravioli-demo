@@ -195,7 +195,7 @@
             try {
                 // Fetch wasm with progress tracking
                 setStatus('Fetching...');
-                const response = await fetch('./ravioli_bg.wasm?v=552');
+                const response = await fetch('./ravioli_bg.wasm?v=554');
 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -228,7 +228,7 @@
                 }
 
                 // Init wasm
-                const { default: init } = await import('./ravioli.js?v=552');
+                const { default: init } = await import('./ravioli.js?v=554');
                 await init(wasmBytes.buffer);
 
                 loading.classList.add('hidden');
